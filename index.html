@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Webmap 201</title>
+    <link rel="stylesheet" href="src/leaflet.css">
+    <link rel="stylesheet" href="src/css/bootstrap.css">
+    <link rel="stylesheet" href="src/plugind/L.Control.Pan.css">
+    <link rel="stylesheet" href="src/plugind/L.Control.Zoomslider.css">
+    <link rel="stylesheet" href="src/plugind/L.Control.MousePosition.css">
+    <link rel="stylesheet" href="src/plugind/Leaflet.PolylineMeasure.css">
+    <link rel="stylesheet" href="src/plugind/easy-button.css">
+    <link rel="stylesheet" href="src/plugind/L.Control.Sidebar.css">
+    <link rel="stylesheet" href="src/plugind/opencage/css/L.Control.OpenCageGeocoding.css">
+
+
+    <script src="src/leaflet-src.js"></script>
+    <script src="src/code.jquery.com_jquery-3.7.0.min.js"></script>
+    <script src="src/plugind/L.Control.Pan.js"></script>
+    <script src="src/plugind/L.Control.Zoomslider.js"></script>
+    <script src="src/plugind/L.Control.MousePosition.js"></script>
+    <script src="src/plugind/Leaflet.PolylineMeasure.js"></script>
+    <script src="src/plugind/easy-button.js"></script>
+    <script src="src/plugind/L.Control.Sidebar.js"></script>
+    <script src="src/plugind/opencage/js/L.Control.OpenCageGeocoding.js"></script>
+
+    <style>
+        #mapdiv {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+<!--<div class="row">-->
+<div id="side-bar">
+    <div class="d-grid gap-2 mx-auto col-9">
+        <button id="btnLocate" class="btn btn-primary btn-block">Locate</button>
+        <button id="btnZTZ" class="btn btn-primary btn-block">Zoom To Zocalo</button>
+    </div>
+    <h5>Zoom Level: <span id="zoom-level"></span></h5>
+    <h5>Map Center: <span id="map-center"></span></h5>
+    <h5>Mouse Location: <span id="mouse-location"></span></h5>
+</div>
+<div id="mapdiv"></div>
+<!--</div>-->
+<script>
+    let myMap;
+    let lyrOSM;
+    let mkCurLocation;
+    let popZocalo;
+    let ctAttr;
+    let ctScale;
+
+    let ctPan;
+    let ctZoomSlider;
+    let ctMousePos;
+    let ctMeasure;
+
+    let ctEasyBtn;
+    let ctSidebar;
+
+    let ctSearch;
+
+
+    $(document).ready(
+        () => {
+            // myMap = L.map('mapdiv', {
+            //     center: [19.4, -99.2], zoom: 13,
+            //     zoomControl: false, dragging: false, minZoom: 10, maxZoom: 14
+            // });
+            myMap = L.map('mapdiv', {
+                center: [19.4, -99.2], zoom: 13, zoomControl: false, attributionControl: false
+            });
+            lyrOSM = L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png');
+            myMap.addLayer(lyrOSM);
+
+
+            ctPan = L.control.pan().addTo(myMap);
+            ctZoomSlider = L.control.zoomslider({position: 'topright'}).addTo(myMap);
+
+            ctMeasure = L.control.polylineMeasure().addTo(myMap);
+
+            ctSidebar = L.control.sidebar('side-bar').addTo(myMap);
+
+
+            ctEasyBtn = L.easyButton("glyphicon-transfer", () => {
+                ctSidebar.toggle();
+            }).addTo(myMap);
+
+
+            ctSearch = L.Control.openCageGeocoding({
+                key: '25f21acbc78542d6aec0cac6f255c293',
+                limit: 10,
+            }).addTo(myMap);
+
+            ctAttr = L.control.attribution({position: 'bottomleft'});
+            ctAttr.addTo(myMap);
+            ctAttr.addAttribution('OSM');
+
+
+            ctScale = L.control.scale({position: 'bottomright', metric: false, maxWidth: 200});
+            ctScale.addTo(myMap);
+
+            ctMousePos = L.control.mousePosition().addTo(myMap);
+
+
+            popZocalo = L.popup({
+                maxWidth: 200,
+                keepInView: true
+            }).setLatLng([19.43262, -99.13325]).setContent(`<h2>Zocalo</h2><img src="img/zocalo.jpeg" width="200">`);
+
+
+            // myMap.on('click', (e) => {
+            //     if (e.originalEvent.shiftKey) {
+            //         // this is DOM Mouse event
+            //         alert(myMap.getZoom());
+            //     } else {
+            //         alert(e.latlng.toString());
+            //     }
+            // });
+
+            myMap.on('contextmenu', e => {
+                const dtCurTime = new Date();
+                L.marker(e.latlng).addTo(myMap).bindPopup(e.latlng.toString() + `<br>${dtCurTime.toString()}`);
+            });
+
+            // setInterval(() => {
+            //     myMap.locate();
+            // }, 5000);
+
+            myMap.on('keypress', e => {
+                if (e.originalEvent.key === 'l') {
+                    myMap.locate();
+                }
+            });
+
+            myMap.on('locationfound', e => {
+                if (mkCurLocation) {
+                    mkCurLocation.remove();
+                }
+                mkCurLocation = L.circle(e.latlng, {radius: e.accuracy / 2}).addTo(myMap);
+                myMap.setView(e.latlng, 14);
+            });
+
+            myMap.on('locationerror', e => {
+                alert('location not found');
+            });
+
+            myMap.on('zoomend', () => {
+                $('#zoom-level').html(
+                    myMap.getZoom()
+                );
+            });
+
+            myMap.on('moveend', () => {
+                $('#map-center').html(
+                    LatLngToArrayStr(myMap.getCenter())
+                );
+            });
+
+            myMap.on('mousemove', (e) => {
+                $('#mouse-location').html(
+                    LatLngToArrayStr(e.latlng)
+                );
+            });
+
+            $('#btnLocate').click(() => {
+                myMap.locate();
+            });
+
+            $('#btnZTZ').click(() => {
+                myMap.setView([19.43262, -99.13325], 17);
+                myMap.openPopup(popZocalo);
+            });
+
+        }
+    );
+
+    const LatLngToArrayStr = (ll) => {
+        return "[" + ll.lat.toFixed(5) + ", " + ll.lng.toFixed(5) + "]";
+    }
+
+</script>
+
+
+</body>
+</html>
